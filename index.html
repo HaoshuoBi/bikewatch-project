@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bikewatching</title>
+
+    <!-- 全局样式 -->
+    <link rel="stylesheet" href="global.css" />
+    <!-- 地图相关样式 -->
+    <link rel="stylesheet" href="map.css" />
+
+    <!-- 网站小图标（favicon） -->
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+
+    <!-- Mapbox GL JS 的 CSS -->
+    <link
+      href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css"
+      rel="stylesheet"
+    />
+
+    <!-- 我们自己的 JS（ES module） -->
+    <script src="map.js" type="module"></script>
+  </head>
+
+  <body>
+    <!-- 顶部：标题 + 时间过滤器 -->
+    <header>
+      <h1>🚴🏼‍♀️ Bikewatching</h1>
+
+      <label class="time-filter">
+        Filter by time:
+        <input
+          id="time-slider"
+          type="range"
+          min="-1"
+          max="1440"
+          value="-1"
+          step="1"
+        />
+        <time id="selected-time"></time>
+        <em id="any-time">(any time)</em>
+      </label>
+    </header>
+
+    <!-- 简短说明，可以保留 -->
+    <p>
+      An interactive Mapbox visualization of bike traffic in the Boston area.
+    </p>
+
+    <!-- 地图容器：Mapbox + SVG 圆点都在这里 -->
+    <div id="map">
+      <svg></svg>
+    </div>
+    
+    <!-- 交通方向图例 -->
+    <div class="legend">
+        <div style="--departure-ratio: 1">More departures</div>
+        <div style="--departure-ratio: 0.5">Balanced</div>
+        <div style="--departure-ratio: 0">More arrivals</div>
+    </div>
+  </body>
+</html>
