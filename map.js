@@ -1,8 +1,10 @@
-// 用 d3 + MapLibre（完全免费，不需要 token）
 import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm';
-import maplibregl from 'https://cdn.jsdelivr.net/npm/maplibre-gl@3.6.1/+esm';
+import mapboxgl from 'https://cdn.jsdelivr.net/npm/mapbox-gl@2.15.0/+esm';
 
-console.log('MapLibre GL JS Loaded:', maplibregl);
+console.log('Mapbox GL JS Loaded:', mapboxgl);
+
+mapboxgl.accessToken =
+  'pk.eyJ1IjoibmF0ZWJpIiwiYSI6ImNtaTc2Ym8ycTA4NjIybXB6MDJsbzc4NG0ifQ.-TbmcuMQOj8w61cZfkotZA';
 
 // ========== 常量 & URL ==========
 const BIKE_LANE_PAINT = {
@@ -24,8 +26,6 @@ const BLUEBIKES_TRAFFIC_URL =
   'https://dsc106.com/labs/lab07/data/bluebikes-traffic-2024-03.csv';
 
 // ========== 工具函数：地图坐标 ==========
-let map; // 提前声明，让 getCoords 能访问
-
 function getCoords(station) {
   const lon = +(
     station.lon ??
@@ -47,7 +47,7 @@ function getCoords(station) {
     return { cx: -9999, cy: -9999 };
   }
 
-  const point = new maplibregl.LngLat(lon, lat);
+  const point = new mapboxgl.LngLat(lon, lat);
   const { x, y } = map.project(point);
   return { cx: x, cy: y };
 }
@@ -90,11 +90,10 @@ function computeStationTraffic(stations, trips) {
   });
 }
 
-// ========== 创建 MapLibre 地图（完全免费底图） ==========
-// 使用 MapLibre 官方 demo 的 OSM style，不需要 token
-map = new maplibregl.Map({
+// ========== 创建地图 ==========
+const map = new mapboxgl.Map({
   container: 'map',
-  style: 'https://demotiles.maplibre.org/style.json',
+  style: 'mapbox://styles/mapbox/streets-v12',
   center: [-71.09415, 42.36027],
   zoom: 12,
   minZoom: 5,
@@ -145,7 +144,7 @@ map.on('load', async () => {
     return;
   }
 
-  // ---------- 骑行记录 ----------
+  // ---------- 骑行记录（顺便转成 Date） ----------
   let trips = [];
   try {
     trips = await d3.csv(BLUEBIKES_TRAFFIC_URL, (trip) => {
@@ -172,21 +171,23 @@ map.on('load', async () => {
     .domain([0, d3.max(stations, (d) => d.totalTraffic)])
     .range([0, 25]);
 
+  // ★ Step 6.1：定义 quantize 颜色比例尺（0~1 → 0 / 0.5 / 1）
   const stationFlow = d3
     .scaleQuantize()
     .domain([0, 1])
     .range([0, 0.5, 1]);
 
+  // 把一个 station 映射到 --departure-ratio
   function getDepartureRatio(d) {
     if (!d.totalTraffic || d.totalTraffic === 0) {
-      return 0.5;
+      return 0.5; // 没流量就当 balanced
     }
     const raw = d.departures / d.totalTraffic;
+    // 保险起见夹在 [0, 1] 再丢进 quantize
     const clamped = Math.max(0, Math.min(1, raw));
     return stationFlow(clamped);
   }
 
-  // 这里假设你在 CSS 里有一个 overlay 的 SVG（和原来一样）
   const svg = d3.select('#map').select('svg');
 
   let circles = svg
@@ -205,8 +206,10 @@ map.on('load', async () => {
           `${d.totalTraffic} trips (${d.departures} departures, ${d.arrivals} arrivals)`,
         );
     })
+    // ★ 给每个圆设置 CSS 变量 --departure-ratio
     .style('--departure-ratio', getDepartureRatio);
 
+  // 跟随地图移动
   function updatePositions() {
     circles
       .attr('cx', (d) => getCoords(d).cx)
@@ -254,6 +257,7 @@ map.on('load', async () => {
     }
     radiusScale.domain([0, maxTraffic]);
 
+    // ★ 这里用 join 更新圆，同时更新 radius 和 --departure-ratio
     circles = svg
       .selectAll('circle')
       .data(filteredStations, (d) => d.short_name ?? d.Number)
